@@ -4,7 +4,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
+import '../../providers/auth_provider.dart';
+import '../../services/reports_service.dart';
 
 class ProblemReportScreen extends StatefulWidget {
   const ProblemReportScreen({super.key});
@@ -14,7 +17,9 @@ class ProblemReportScreen extends StatefulWidget {
 }
 
 class _ProblemReportScreenState extends State<ProblemReportScreen> {
+  final ReportsService _reportsService = ReportsService();
   int _currentStep = 0;
+  bool _isSubmitting = false;
   String? _selectedCategory;
   String? _selectedLocation;
   String? _selectedImpact;
@@ -70,24 +75,73 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
     }
   }
 
-  void _submitReport() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.white),
-            SizedBox(width: 12),
-            Text('Report submitted successfully!'),
-          ],
+  Future<void> _submitReport() async {
+    final authProvider = context.read<AuthProvider>();
+    final user = authProvider.user;
+    
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to submit a report'),
+          backgroundColor: Colors.orange,
         ),
-        backgroundColor: AppTheme.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
-    Navigator.pop(context);
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final success = await _reportsService.submitReport(
+        category: _selectedCategory!,
+        location: _selectedLocation!,
+        impactScope: _selectedImpact!,
+        description: _descriptionController.text,
+        reporterId: user.id.toString(),
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Report submitted successfully!'),
+                ],
+              ),
+              backgroundColor: AppTheme.success,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+          Navigator.pop(context);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to submit report. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   bool _canProceed() {
@@ -172,7 +226,7 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
                 Expanded(
                   flex: _currentStep > 0 ? 2 : 1,
                   child: ElevatedButton(
-                    onPressed: _canProceed() ? _nextStep : null,
+                    onPressed: (_canProceed() && !_isSubmitting) ? _nextStep : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryBlue,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -180,10 +234,19 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
-                      _currentStep == 2 ? 'Submit Report' : 'Continue',
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    child: _isSubmitting
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _currentStep == 2 ? 'Submit Report' : 'Continue',
+                            style: const TextStyle(color: Colors.white),
+                          ),
                   ),
                 ),
               ],
