@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
@@ -79,43 +80,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 final targetWeekday = index + 1;
                 final diff = targetWeekday - currentWeekday;
                 final date = now.add(Duration(days: diff));
+                final isToday = diff == 0;
                 
-                return GestureDetector(
+                return _DayButton(
+                  day: _days[index],
+                  date: date.day,
+                  isSelected: isSelected,
+                  isToday: isToday,
                   onTap: () => setState(() => _selectedDay = index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppTheme.primaryBlue
-                          : Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          _days[index],
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected ? Colors.white : Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${date.day}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? Colors.white : Colors.black,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 );
               }),
             ),
@@ -599,3 +571,134 @@ class _EmptySlotBreak {
   final int slotIndex;
   _EmptySlotBreak({required this.slotIndex});
 }
+
+class _DayButton extends StatefulWidget {
+  final String day;
+  final int date;
+  final bool isSelected;
+  final bool isToday;
+  final VoidCallback onTap;
+
+  const _DayButton({
+    required this.day,
+    required this.date,
+    required this.isSelected,
+    required this.isToday,
+    required this.onTap,
+  });
+
+  @override
+  State<_DayButton> createState() => _DayButtonState();
+}
+
+class _DayButtonState extends State<_DayButton>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_DayButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected && !oldWidget.isSelected) {
+      _controller.forward().then((_) => _controller.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => _controller.forward(),
+      onTapUp: (_) => _controller.reverse(),
+      onTapCancel: () => _controller.reverse(),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        widget.onTap();
+      },
+      child: AnimatedBuilder(
+        animation: _scaleAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: _scaleAnimation.value,
+            child: child,
+          );
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
+          ),
+          decoration: BoxDecoration(
+            color: widget.isSelected
+                ? AppTheme.primaryBlue
+                : widget.isToday
+                    ? AppTheme.primaryBlue.withOpacity(0.1)
+                    : Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(12),
+            border: widget.isToday && !widget.isSelected
+                ? Border.all(color: AppTheme.primaryBlue.withOpacity(0.3), width: 1.5)
+                : null,
+            boxShadow: widget.isSelected
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryBlue.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Column(
+            children: [
+              Text(
+                widget.day,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: widget.isSelected
+                      ? Colors.white
+                      : widget.isToday
+                          ? AppTheme.primaryBlue
+                          : Colors.grey.shade600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${widget.date}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: widget.isSelected
+                      ? Colors.white
+                      : widget.isToday
+                          ? AppTheme.primaryBlue
+                          : Colors.black,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -1,4 +1,4 @@
-/// App Router Configuration
+/// App Router Configuration - Enhanced with premium transitions
 library;
 
 import 'package:flutter/material.dart';
@@ -29,63 +29,155 @@ class AppRoutes {
   static const String announcements = '/announcements';
   static const String resources = '/resources';
 
+  // Premium easing curves for smooth transitions
+  static const Curve _smoothCurve = Curves.easeOutCubic;
+  static const Curve _bounceCurve = Curves.easeOutBack;
+
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case splash:
         return _fadeRoute(const SplashScreen());
       case login:
-        return _slideRoute(const LoginScreen());
+        return _scaleFadeRoute(const LoginScreen());
       case home:
         return _fadeRoute(const MainShell());
       case schedule:
-        return _slideRoute(const ScheduleScreen());
+        return _sharedAxisRoute(const ScheduleScreen());
       case events:
-        return _slideRoute(const EventsScreen());
+        return _sharedAxisRoute(const EventsScreen());
       case profile:
-        return _slideRoute(const ProfileScreen());
+        return _slideUpRoute(const ProfileScreen());
       case attendance:
-        return _slideRoute(const AttendanceViewScreen());
+        return _sharedAxisRoute(const AttendanceViewScreen());
       case reportProblem:
-        return _slideRoute(const ProblemReportScreen());
+        return _slideUpRoute(const ProblemReportScreen());
       case myReports:
-        return _slideRoute(const MyReportsScreen());
+        return _sharedAxisRoute(const MyReportsScreen());
       case markAttendance:
-        return _slideRoute(const AttendanceMarkingScreen());
+        return _sharedAxisRoute(const AttendanceMarkingScreen());
       case announcements:
-        return _slideRoute(const AnnouncementsScreen());
+        return _sharedAxisRoute(const AnnouncementsScreen());
       case resources:
-        return _slideRoute(const ResourcesScreen());
+        return _sharedAxisRoute(const ResourcesScreen());
       default:
         return _fadeRoute(const SplashScreen());
     }
   }
 
+  /// Smooth fade transition - ideal for root screens
   static PageRouteBuilder _fadeRoute(Widget page) {
     return PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(opacity: animation, child: child);
+        final fadeAnimation = CurvedAnimation(
+          parent: animation,
+          curve: _smoothCurve,
+        );
+        return FadeTransition(opacity: fadeAnimation, child: child);
       },
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: const Duration(milliseconds: 350),
     );
   }
 
-  static PageRouteBuilder _slideRoute(Widget page) {
+  /// Scale + Fade combo - perfect for important screens like login
+  static PageRouteBuilder _scaleFadeRoute(Widget page) {
     return PageRouteBuilder(
       pageBuilder: (context, animation, secondaryAnimation) => page,
       transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        const begin = Offset(1.0, 0.0);
-        const end = Offset.zero;
-        const curve = Curves.easeInOut;
-        var tween = Tween(begin: begin, end: end).chain(
-          CurveTween(curve: curve),
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: _bounceCurve,
         );
-        return SlideTransition(
-          position: animation.drive(tween),
-          child: child,
+        
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0, end: 1).animate(
+            CurvedAnimation(parent: animation, curve: _smoothCurve),
+          ),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.92, end: 1.0).animate(curvedAnimation),
+            child: child,
+          ),
         );
       },
-      transitionDuration: const Duration(milliseconds: 300),
+      transitionDuration: const Duration(milliseconds: 400),
+    );
+  }
+
+  /// Shared axis horizontal transition - for list to detail navigation
+  static PageRouteBuilder _sharedAxisRoute(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: _smoothCurve,
+        );
+        
+        // Incoming page slides in and fades in
+        final slideAnimation = Tween<Offset>(
+          begin: const Offset(0.15, 0),
+          end: Offset.zero,
+        ).animate(curvedAnimation);
+        
+        final fadeAnimation = Tween<double>(begin: 0, end: 1).animate(curvedAnimation);
+        
+        // Outgoing page slides out and fades out
+        final secondaryCurved = CurvedAnimation(
+          parent: secondaryAnimation,
+          curve: _smoothCurve,
+        );
+        
+        final secondarySlide = Tween<Offset>(
+          begin: Offset.zero,
+          end: const Offset(-0.15, 0),
+        ).animate(secondaryCurved);
+        
+        final secondaryFade = Tween<double>(begin: 1, end: 0.5).animate(secondaryCurved);
+
+        return SlideTransition(
+          position: secondarySlide,
+          child: FadeTransition(
+            opacity: secondaryFade,
+            child: SlideTransition(
+              position: slideAnimation,
+              child: FadeTransition(
+                opacity: fadeAnimation,
+                child: child,
+              ),
+            ),
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 350),
+    );
+  }
+
+  /// Slide up transition - for modal-like screens (profile, reports)
+  static PageRouteBuilder _slideUpRoute(Widget page) {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => page,
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        final curvedAnimation = CurvedAnimation(
+          parent: animation,
+          curve: _smoothCurve,
+        );
+        
+        final slideAnimation = Tween<Offset>(
+          begin: const Offset(0, 0.08),
+          end: Offset.zero,
+        ).animate(curvedAnimation);
+        
+        final fadeAnimation = Tween<double>(begin: 0, end: 1).animate(curvedAnimation);
+        
+        return SlideTransition(
+          position: slideAnimation,
+          child: FadeTransition(
+            opacity: fadeAnimation,
+            child: child,
+          ),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 350),
     );
   }
 }

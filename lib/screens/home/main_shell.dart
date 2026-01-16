@@ -1,8 +1,8 @@
-/// Main Shell - Bottom Navigation Container
+/// Main Shell - Enhanced Bottom Navigation with Premium Animations
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter/services.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:provider/provider.dart';
 import '../../config/app_theme.dart';
@@ -20,9 +20,11 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with TickerProviderStateMixin {
   int _currentIndex = 0;
   late PageController _pageController;
+  late AnimationController _indicatorController;
+  late Animation<double> _indicatorAnimation;
 
   final List<Widget> _studentPages = [
     const HomeScreen(),
@@ -42,36 +44,51 @@ class _MainShellState extends State<MainShell> {
     BottomNavItem(icon: Iconsax.home, activeIcon: Iconsax.home_15, label: 'Home'),
     BottomNavItem(icon: Iconsax.calendar, activeIcon: Iconsax.calendar5, label: 'Schedule'),
     BottomNavItem(icon: Iconsax.chart, activeIcon: Iconsax.chart_15, label: 'Attendance'),
-    BottomNavItem(icon: Iconsax.element_4, activeIcon: Iconsax.element_45, label: 'Service'),
+    BottomNavItem(icon: Iconsax.element_4, activeIcon: Iconsax.element_45, label: 'Services'),
   ];
 
   List<BottomNavItem> get _facultyNavItems => [
     BottomNavItem(icon: Iconsax.home, activeIcon: Iconsax.home_15, label: 'Home'),
     BottomNavItem(icon: Iconsax.calendar, activeIcon: Iconsax.calendar5, label: 'Schedule'),
-    BottomNavItem(icon: Iconsax.chart, activeIcon: Iconsax.chart_15, label: 'Attendance'),
-    BottomNavItem(icon: Iconsax.element_4, activeIcon: Iconsax.element_45, label: 'Service'),
+    BottomNavItem(icon: Iconsax.chart, activeIcon: Iconsax.chart_15, label: 'Mark'),
+    BottomNavItem(icon: Iconsax.element_4, activeIcon: Iconsax.element_45, label: 'Services'),
   ];
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    _indicatorController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _indicatorAnimation = CurvedAnimation(
+      parent: _indicatorController,
+      curve: Curves.easeOutBack,
+    );
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _indicatorController.dispose();
     super.dispose();
   }
 
   void _onNavTap(int index) {
+    if (index == _currentIndex) return;
+    
+    HapticFeedback.lightImpact();
     setState(() {
       _currentIndex = index;
     });
+    
+    _indicatorController.forward(from: 0);
+    
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
     );
   }
 
@@ -93,65 +110,30 @@ class _MainShellState extends State<MainShell> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.08),
+              color: Colors.black.withOpacity(0.06),
               blurRadius: 20,
-              offset: const Offset(0, -5),
+              offset: const Offset(0, -8),
             ),
           ],
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Container(
+            height: 70,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(navItems.length, (index) {
                 final item = navItems[index];
                 final isSelected = _currentIndex == index;
 
-                return GestureDetector(
-                  onTap: () => _onNavTap(index),
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppTheme.primaryBlue.withValues(alpha: 0.1)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isSelected ? item.activeIcon : item.icon,
-                          size: 24,
-                          color: isSelected
-                              ? AppTheme.primaryBlue
-                              : AppTheme.textSecondaryLight,
-                        )
-                            .animate(target: isSelected ? 1 : 0)
-                            .scale(
-                              begin: const Offset(1, 1),
-                              end: const Offset(1.1, 1.1),
-                              duration: 150.ms,
-                            ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected
-                                ? AppTheme.primaryBlue
-                                : AppTheme.textSecondaryLight,
-                          ),
-                        ),
-                      ],
+                return Expanded(
+                  child: GestureDetector(
+                    onTap: () => _onNavTap(index),
+                    behavior: HitTestBehavior.opaque,
+                    child: _AnimatedNavItem(
+                      item: item,
+                      isSelected: isSelected,
+                      animation: isSelected ? _indicatorAnimation : null,
                     ),
                   ),
                 );
@@ -160,6 +142,122 @@ class _MainShellState extends State<MainShell> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _AnimatedNavItem extends StatefulWidget {
+  final BottomNavItem item;
+  final bool isSelected;
+  final Animation<double>? animation;
+
+  const _AnimatedNavItem({
+    required this.item,
+    required this.isSelected,
+    this.animation,
+  });
+
+  @override
+  State<_AnimatedNavItem> createState() => _AnimatedNavItemState();
+}
+
+class _AnimatedNavItemState extends State<_AnimatedNavItem>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _bounceController;
+  late Animation<double> _bounceAnimation;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _bounceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _bounceAnimation = Tween<double>(begin: 0, end: -4).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.easeOutBack),
+    );
+    _scaleAnimation = Tween<double>(begin: 1, end: 1.15).animate(
+      CurvedAnimation(parent: _bounceController, curve: Curves.easeOutBack),
+    );
+  }
+
+  @override
+  void didUpdateWidget(_AnimatedNavItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isSelected && !oldWidget.isSelected) {
+      _bounceController.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _bounceController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _bounceController,
+      builder: (context, child) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Icon with bounce and scale
+            Transform.translate(
+              offset: Offset(0, widget.isSelected ? _bounceAnimation.value : 0),
+              child: Transform.scale(
+                scale: widget.isSelected ? _scaleAnimation.value : 1,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: widget.isSelected 
+                        ? AppTheme.primaryBlue.withOpacity(0.12) 
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    widget.isSelected ? widget.item.activeIcon : widget.item.icon,
+                    size: 24,
+                    color: widget.isSelected
+                        ? AppTheme.primaryBlue
+                        : AppTheme.textSecondaryLight,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            // Label with animated opacity
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: widget.isSelected ? 11 : 10,
+                fontWeight: widget.isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: widget.isSelected
+                    ? AppTheme.primaryBlue
+                    : AppTheme.textSecondaryLight,
+              ),
+              child: Text(widget.item.label),
+            ),
+            // Active indicator dot
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOutCubic,
+              margin: const EdgeInsets.only(top: 4),
+              width: widget.isSelected ? 4 : 0,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryBlue,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -175,3 +273,4 @@ class BottomNavItem {
     required this.label,
   });
 }
+
