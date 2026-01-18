@@ -109,8 +109,8 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
     if (user == null) return;
 
     try {
-      final tableName = user.role == 'student' ? 'users' : 
-                        user.role == 'faculty' ? 'faculty' : 'admin';
+      // Use correct table names matching web version
+      final tableName = user.role == 'student' ? 'student_records' : 'faculty';
 
       final response = await _supabase
           .from(tableName)
@@ -121,7 +121,7 @@ class _ProfileScreenState extends State<ProfileScreen> with SingleTickerProvider
             'address': _addressController.text,
             'emergency_contact': _emergencyController.text,
           })
-          .eq('id', user.id)
+          .eq('user_id', user.userId)
           .select()
           .single();
 

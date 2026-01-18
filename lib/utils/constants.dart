@@ -53,7 +53,8 @@ class AppConstants {
   static const String keyThemeMode = 'themeMode';
   
   // API Endpoints
-  static const String mlApiBaseUrl = 'http://localhost:5000';
+  static const String mlApiBaseUrl = 'https://campus-ease-priority-api.onrender.com';
+  // For local development: 'http://localhost:5000';
   
   // Timeouts
   static const Duration connectionTimeout = Duration(seconds: 30);

@@ -23,32 +23,41 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
   String? _selectedCategory;
   String? _selectedLocation;
   String? _selectedImpact;
+  String? _selectedOccurrence;
   final _descriptionController = TextEditingController();
 
+  // Match web version categories
   final List<String> _categories = [
     'Infrastructure',
-    'Academics',
     'IT/Technical',
-    'Safety',
-    'Cleanliness',
-    'Other',
+    'Academic',
+    'Administrative',
+    'Safety/Security',
+    'Maintenance',
   ];
 
+  // Match web version locations
   final List<String> _locations = [
-    'Main Building',
-    'Library',
-    'Cafeteria',
-    'Labs',
-    'Sports Complex',
-    'Hostel',
-    'Other',
+    'Class',
+    'Lab',
+    'Center Square',
+    'Hall',
+    'Institute',
   ];
 
+  // Match web version impact scopes
   final List<String> _impactLevels = [
-    'Individual',
-    'Class',
-    'Department',
-    'Campus-wide',
+    'Single person affected',
+    'Whole class affected',
+    'Everyone affected',
+  ];
+
+  // Match web version occurrence patterns
+  final List<String> _occurrencePatterns = [
+    'First occurrence',
+    'Recurring issue',
+    'Daily',
+    'Weekly',
   ];
 
   @override
@@ -97,7 +106,9 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
         location: _selectedLocation!,
         impactScope: _selectedImpact!,
         description: _descriptionController.text,
-        reporterId: user.id.toString(),
+        reporterId: user.userId,
+        reporterType: user.isStudent ? 'Student' : 'Faculty',
+        occurrencePattern: _selectedOccurrence ?? 'First occurrence',
       );
 
       if (mounted) {
@@ -149,7 +160,9 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
       case 0:
         return _selectedCategory != null;
       case 1:
-        return _selectedLocation != null && _selectedImpact != null;
+        return _selectedLocation != null && 
+               _selectedImpact != null && 
+               _selectedOccurrence != null;
       case 2:
         return _descriptionController.text.isNotEmpty;
       default:
@@ -423,6 +436,26 @@ class _ProblemReportScreenState extends State<ProblemReportScreen> {
             icon: _getImpactIcon(impact),
             onTap: () => setState(() => _selectedImpact = impact),
             delay: index * 50,
+          );
+        }),
+        const SizedBox(height: 24),
+        const Text(
+          'Occurrence Pattern',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        ...List.generate(_occurrencePatterns.length, (index) {
+          final occurrence = _occurrencePatterns[index];
+          final isSelected = _selectedOccurrence == occurrence;
+          return _buildOptionCard(
+            title: occurrence,
+            isSelected: isSelected,
+            icon: Iconsax.calendar,
+            onTap: () => setState(() => _selectedOccurrence = occurrence),
+            delay: (index + _impactLevels.length) * 50,
           );
         }),
       ],

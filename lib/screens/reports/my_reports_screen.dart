@@ -46,7 +46,7 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     });
 
     try {
-      final reports = await _reportsService.getUserReports(user.id.toString());
+      final reports = await _reportsService.getUserReports(user.userId);
       if (mounted) {
         setState(() {
           _reports = reports;
@@ -85,10 +85,18 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
   }
 
   String _getPriority(Map<String, dynamic> report) {
+    // Use priority_text if available (from ML prediction), otherwise calculate from level
+    final priorityText = report['priority_text'];
+    if (priorityText != null && priorityText is String) {
+      return priorityText;
+    }
+    
+    // Fallback to calculating from priority_level
     final level = report['priority_level'];
     if (level == null) return 'Medium';
-    if (level >= 3) return 'High';
-    if (level == 2) return 'Medium';
+    if (level >= 3) return 'Critical';
+    if (level == 2) return 'High';
+    if (level == 1) return 'Medium';
     return 'Low';
   }
 
@@ -350,10 +358,11 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
   }
 
   Color _getPriorityColor(String priority) {
-    switch (priority) {
-      case 'High': return AppTheme.error;
-      case 'Medium': return AppTheme.warning;
-      case 'Low': return AppTheme.success;
+    switch (priority.toLowerCase()) {
+      case 'critical': return AppTheme.error;
+      case 'high': return const Color(0xFFF59E0B); // Orange
+      case 'medium': return AppTheme.warning;
+      case 'low': return AppTheme.success;
       default: return Colors.grey;
     }
   }
